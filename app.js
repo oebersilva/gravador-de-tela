@@ -25,6 +25,7 @@ const howItWorksBtn       = document.getElementById('how-it-works-btn');
 const howItWorksModal     = document.getElementById('how-it-works-modal');
 const closeHowBtn         = document.getElementById('close-how-btn');
 const btnEntendido        = document.getElementById('btn-entendido');
+const systemAudioSelect   = document.getElementById('system-audio-select');
 
 
 // ─── APPLICATION STATE ────────────────────────────────────────────────────────
@@ -336,10 +337,11 @@ async function startRecording(sourceId) {
       });
     } else {
       // Web fallback
+      const recordSystemAudio = systemAudioSelect ? systemAudioSelect.value === 'include' : false;
       screenStream = await navigator.mediaDevices.getDisplayMedia({
         video: { cursor: 'always', frameRate: { ideal: videoQuality === '1080p' ? 60 : 30 } },
-        audio: true,
-        systemAudio: 'include'
+        audio: recordSystemAudio,
+        systemAudio: recordSystemAudio ? 'include' : 'exclude'
       });
     }
 
