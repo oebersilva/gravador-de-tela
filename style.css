@@ -1133,6 +1133,12 @@ body {
   border-color: rgba(139, 92, 246, 0.3);
 }
 
+.btn-delete-video:hover {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #ef4444 !important;
+  transform: scale(1.1);
+}
+
 .thumb-preview-placeholder {
   width: 70px;
   height: 44px;

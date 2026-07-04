@@ -288,6 +288,9 @@ async function loadOtherVideos() {
       const a = document.createElement('a');
       a.className = `video-thumb-item ${isCurrent ? 'active' : ''}`;
       a.href = `share.html?id=${vid.id}`;
+      a.style.position = 'relative';
+      a.style.display = 'flex';
+      a.style.alignItems = 'center';
       
       // Highlight style
       if (isCurrent) {
@@ -301,11 +304,46 @@ async function loadOtherVideos() {
         <div class="thumb-preview-placeholder">
           <i data-lucide="video"></i>
         </div>
-        <div class="thumb-info">
-          <span class="thumb-title" title="${vid.title}">${vid.title}</span>
+        <div class="thumb-info" style="flex: 1; min-width: 0;">
+          <span class="thumb-title" title="${vid.title}" style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${vid.title}</span>
           <span class="thumb-date">${dateStr}</span>
         </div>
+        <button class="btn-delete-video" title="Excluir gravação" style="
+          background: transparent; border: none; color: rgba(255,255,255,0.4);
+          cursor: pointer; padding: 6px; border-radius: 4px; display: flex;
+          align-items: center; justify-content: center; transition: all 0.15s;
+          margin-left: 6px;
+        ">
+          <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+        </button>
       `;
+
+      // Event listener for the delete button
+      const deleteBtn = a.querySelector('.btn-delete-video');
+      deleteBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        if (confirm(`Deseja mesmo excluir a gravação "${vid.title}"?`)) {
+          try {
+            await db.deleteVideo(vid.id);
+            if (vid.id === currentVideoId) {
+              const allRemaining = await db.getAllVideos();
+              if (allRemaining.length > 0) {
+                window.location.href = `share.html?id=${allRemaining[0].id}`;
+              } else {
+                window.location.href = 'index.html';
+              }
+            } else {
+              await loadOtherVideos();
+            }
+          } catch (err) {
+            console.error("Erro ao excluir vídeo:", err);
+            alert("Não foi possível excluir o vídeo.");
+          }
+        }
+      });
+
       myVideosContainer.appendChild(a);
     });
 
