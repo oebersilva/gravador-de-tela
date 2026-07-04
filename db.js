@@ -4,7 +4,7 @@ const DB_NAME = 'LoomifyDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'videos';
 
-export const db = {
+window.db = {
   dbInstance: null,
 
   init() {
