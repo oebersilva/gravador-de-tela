@@ -315,11 +315,11 @@ async function openCameraBubble(deviceId) {
       // Set body styling
       pipWindow.document.body.className = 'pip-body';
 
-      // Create camera container with circle style
+      // Camera container (full-size, takes all available vertical space)
       const pipContainer = pipWindow.document.createElement('div');
       pipContainer.className = 'pip-camera-container';
 
-      // Create Video Element
+      // Video element - full width, mirrored
       const pipVideo = pipWindow.document.createElement('video');
       pipVideo.className = 'pip-video';
       pipVideo.autoplay = true;
@@ -327,44 +327,52 @@ async function openCameraBubble(deviceId) {
       pipVideo.playsInline = true;
       pipVideo.srcObject = cameraStream;
 
-      // Overlay status
-      const pipOverlay = pipWindow.document.createElement('div');
-      pipOverlay.className = 'pip-overlay';
-      const dot = pipWindow.document.createElement('span');
-      dot.className = 'pip-overlay-dot';
-      const txt = pipWindow.document.createTextNode('GRAVANDO');
-      pipOverlay.appendChild(dot);
-      pipOverlay.appendChild(txt);
+      pipContainer.appendChild(pipVideo);
 
-      // Create controls overlay inside PiP window (Pause, Stop)
-      const pipControls = pipWindow.document.createElement('div');
-      pipControls.className = 'pip-controls-overlay';
+      // Status bar at the bottom (outside pipContainer, sibling)
+      const pipStatusBar = pipWindow.document.createElement('div');
+      pipStatusBar.className = 'pip-status-bar';
+
+      // Left side: dot + label
+      const statusLeft = pipWindow.document.createElement('div');
+      statusLeft.className = 'pip-status-left';
+
+      const statusDot = pipWindow.document.createElement('span');
+      statusDot.className = 'pip-overlay-dot';
+
+      const statusLabel = pipWindow.document.createElement('span');
+      statusLabel.className = 'pip-status-label';
+      statusLabel.textContent = 'Gravando';
+
+      statusLeft.appendChild(statusDot);
+      statusLeft.appendChild(statusLabel);
+
+      // Right side: Pause + Stop buttons
+      const statusRight = pipWindow.document.createElement('div');
+      statusRight.className = 'pip-status-right';
 
       const pipPauseBtn = pipWindow.document.createElement('button');
       pipPauseBtn.className = 'pip-control-btn btn-pause';
-      pipPauseBtn.title = 'Pausar Gravação';
-      pipPauseBtn.innerHTML = `<svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
+      pipPauseBtn.title = 'Pausar';
+      pipPauseBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
 
       const pipStopBtn = pipWindow.document.createElement('button');
       pipStopBtn.className = 'pip-control-btn btn-stop';
       pipStopBtn.title = 'Parar e Salvar';
-      pipStopBtn.innerHTML = `<svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>`;
+      pipStopBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>`;
 
-      pipPauseBtn.addEventListener('click', () => {
-        togglePauseResume(pipPauseBtn);
-      });
+      pipPauseBtn.addEventListener('click', () => togglePauseResume(pipPauseBtn, statusLabel, statusDot));
+      pipStopBtn.addEventListener('click', () => stopRecording());
 
-      pipStopBtn.addEventListener('click', () => {
-        stopRecording();
-      });
+      statusRight.appendChild(pipPauseBtn);
+      statusRight.appendChild(pipStopBtn);
 
-      pipControls.appendChild(pipPauseBtn);
-      pipControls.appendChild(pipStopBtn);
+      pipStatusBar.appendChild(statusLeft);
+      pipStatusBar.appendChild(statusRight);
 
-      pipContainer.appendChild(pipVideo);
-      pipContainer.appendChild(pipOverlay);
-      pipContainer.appendChild(pipControls);
+      // Assemble into PiP body: video on top, status bar pinned to bottom
       pipWindow.document.body.appendChild(pipContainer);
+      pipWindow.document.body.appendChild(pipStatusBar);
 
       // Save a global reference
       window.activePipWindow = pipWindow;
@@ -535,54 +543,44 @@ function updateTimer() {
 }
 
 // Pause and Resume logic
-function togglePauseResume(pipPauseBtn) {
+function togglePauseResume(pipPauseBtn, statusLabel, statusDot) {
   if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
 
   if (!isPaused) {
-    // Pause recording
     mediaRecorder.pause();
     isPaused = true;
     stopTimer();
     
-    // Update PiP Button
+    // Update pause button to "play" icon
     if (pipPauseBtn) {
-      pipPauseBtn.innerHTML = `<svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="currentColor"><path d="M5 3l14 9-14 9V3z"/></svg>`;
-      pipPauseBtn.title = 'Retomar Gravação';
+      pipPauseBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 3l14 9-14 9V3z"/></svg>`;
+      pipPauseBtn.title = 'Retomar';
     }
-    
-    // Blinking effect for paused timer
+
+    // Update status bar
+    if (statusLabel) statusLabel.textContent = 'Pausado';
+    if (statusDot) statusDot.style.background = '#f59e0b'; // amber
+
+    // Blink the main page timer
     timerDisplay.classList.add('paused');
-    
-    // Update status badge in PiP
-    const pipOverlay = window.activePipWindow?.document.querySelector('.pip-overlay');
-    if (pipOverlay) {
-      pipOverlay.style.background = 'rgba(245, 158, 11, 0.85)'; // Orange/Yellow
-      const textNode = [...pipOverlay.childNodes].find(node => node.nodeType === Node.TEXT_NODE);
-      if (textNode) textNode.nodeValue = 'PAUSADO';
-    }
-    
+
   } else {
-    // Resume recording
     mediaRecorder.resume();
     isPaused = false;
-    startTimer(true); // resume timer without resetting
+    startTimer(true);
     
-    // Update PiP Button
+    // Update pause button back to "pause" icon
     if (pipPauseBtn) {
-      pipPauseBtn.innerHTML = `<svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
-      pipPauseBtn.title = 'Pausar Gravação';
+      pipPauseBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
+      pipPauseBtn.title = 'Pausar';
     }
-    
+
+    // Restore status bar
+    if (statusLabel) statusLabel.textContent = 'Gravando';
+    if (statusDot) statusDot.style.background = '#ef4444'; // red
+
     // Remove blinking
     timerDisplay.classList.remove('paused');
-    
-    // Update status badge in PiP
-    const pipOverlay = window.activePipWindow?.document.querySelector('.pip-overlay');
-    if (pipOverlay) {
-      pipOverlay.style.background = 'rgba(239, 68, 68, 0.85)'; // Red
-      const textNode = [...pipOverlay.childNodes].find(node => node.nodeType === Node.TEXT_NODE);
-      if (textNode) textNode.nodeValue = 'GRAVANDO';
-    }
   }
 }
 
