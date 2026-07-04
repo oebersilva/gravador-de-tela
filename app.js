@@ -359,11 +359,13 @@ async function startRecording(sourceId) {
     let hasAudio     = false;
 
     if (micStream?.getAudioTracks().length > 0) {
-      audioCtx.createMediaStreamSource(micStream).connect(audioDestination);
+      const micAudioOnlyStream = new MediaStream(micStream.getAudioTracks());
+      audioCtx.createMediaStreamSource(micAudioOnlyStream).connect(audioDestination);
       hasAudio = true;
     }
     if (screenStream?.getAudioTracks().length > 0) {
-      audioCtx.createMediaStreamSource(screenStream).connect(audioDestination);
+      const screenAudioOnlyStream = new MediaStream(screenStream.getAudioTracks());
+      audioCtx.createMediaStreamSource(screenAudioOnlyStream).connect(audioDestination);
       hasAudio = true;
     }
 
