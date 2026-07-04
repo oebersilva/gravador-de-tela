@@ -10,11 +10,15 @@ permissions:
 
 jobs:
   build-windows:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - name: Baixar código do repositório
         uses: actions/checkout@v4
+
+      - name: Habilitar Developer Mode (permite links simbolicos)
+        run: |
+          reg add "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" /t REG_DWORD /v "AllowDevelopmentWithoutDevLicense" /d 1 /f
 
       - name: Configurar Node.js
         uses: actions/setup-node@v4
@@ -32,21 +36,22 @@ jobs:
 
       - name: Encontrar o arquivo .exe gerado
         id: find_exe
+        shell: pwsh
         run: |
-          EXE_PATH=$(find dist-electron -name "*.exe" | head -n 1)
-          EXE_NAME=$(basename "$EXE_PATH")
-          echo "EXE_PATH=$EXE_PATH" >> $GITHUB_OUTPUT
-          echo "EXE_NAME=$EXE_NAME" >> $GITHUB_OUTPUT
-          echo "Arquivo encontrado: $EXE_PATH"
+          $exe = Get-ChildItem -Path "dist-electron" -Filter "*.exe" -Recurse | Select-Object -First 1
+          echo "EXE_PATH=$($exe.FullName)" >> $env:GITHUB_OUTPUT
+          echo "EXE_NAME=$($exe.Name)" >> $env:GITHUB_OUTPUT
+          echo "Arquivo encontrado: $($exe.FullName)"
 
       - name: Criar tag automática com versão + data
         id: tag
+        shell: pwsh
         run: |
-          VERSION=$(node -e "console.log(require('./package.json').version)")
-          DATE=$(date +'%Y%m%d-%H%M')
-          TAG="v${VERSION}-build-${DATE}"
-          echo "TAG=$TAG" >> $GITHUB_OUTPUT
-          echo "Tag gerada: $TAG"
+          $version = node -e "console.log(require('./package.json').version)"
+          $date = Get-Date -Format "yyyyMMdd-HHmm"
+          $tag = "v$version-build-$date"
+          echo "TAG=$tag" >> $env:GITHUB_OUTPUT
+          echo "Tag gerada: $tag"
 
       - name: Publicar Release com o instalador
         uses: softprops/action-gh-release@v2
