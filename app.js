@@ -285,8 +285,8 @@ async function openCameraBubble(deviceId) {
 
       // Request PiP window (always-on-top, custom size)
       pipWindow = await window.documentPictureInPicture.requestWindow({
-        width: 180,
-        height: 180,
+        width: 240,
+        height: 240,
       });
 
       // Handle manually closed window
