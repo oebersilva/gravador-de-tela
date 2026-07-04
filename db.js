@@ -4,10 +4,11 @@ const DB_NAME = 'LoomifyDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'videos';
 
-window.db = {
+export const db = {
   dbInstance: null,
 
   init() {
+    window.db = this;
     return new Promise((resolve, reject) => {
       if (this.dbInstance) {
         return resolve(this.dbInstance);

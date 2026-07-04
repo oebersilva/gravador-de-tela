@@ -1,3 +1,5 @@
+import { db } from './db.js';
+
 // app.js — Web Screen Recorder using standard Video Picture-in-Picture
 
 // ─── DOM ELEMENTS ─────────────────────────────────────────────────────────────
@@ -50,7 +52,7 @@ async function init() {
 
   // Initialize DB (IndexedDB)
   try {
-    await window.db.init();
+    await db.init();
   } catch (err) {
     console.error('IndexedDB init error:', err);
   }
@@ -336,8 +338,8 @@ async function handleRecordingStop() {
 
       // Save to IndexedDB
       try {
-        if (window.db) {
-          await window.db.saveVideo({
+        if (db) {
+          await db.saveVideo({
             id: videoId,
             title: `Gravação de Tela — ${new Date().toLocaleDateString('pt-BR')}`,
             blob,
