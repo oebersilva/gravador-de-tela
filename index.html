@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loomify - Gravador de Tela Premium na Nuvem</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Lucide Icons (CDN) -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Background Glows -->
+    <div class="glow glow-1"></div>
+    <div class="glow glow-2"></div>
+
+    <!-- Navigation Header -->
+    <header class="main-header">
+      <div class="logo">
+        <div class="logo-icon">
+          <i data-lucide="video" class="gradient-text-icon"></i>
+        </div>
+        <span class="logo-text">Loomify</span>
+        <span class="badge">Nuvem</span>
+      </div>
+      <div class="header-actions">
+        <a href="#features" class="btn-text">Como funciona</a>
+        <a href="share.html" class="btn-secondary">Meus Vídeos</a>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="dashboard-main">
+      <div class="hero-section">
+        <h1>Grave sua tela e webcam. <br><span class="gradient-text">Compartilhe na nuvem instantaneamente.</span></h1>
+        <p class="subtitle">Troque livremente entre o VS Code, abas do navegador ou qualquer outro aplicativo. Sua webcam flutua por cima de tudo na tela.</p>
+      </div>
+
+      <!-- Recorder Control Card -->
+      <div class="recorder-card glass-panel" id="recorder-setup">
+        <div class="card-header">
+          <h2 class="card-title"><i data-lucide="sliders" class="icon-violet"></i>Configurações da Gravação</h2>
+          <span class="status-indicator ready" id="system-status"><span class="dot"></span>Pronto para gravar</span>
+        </div>
+
+        <div class="setup-grid">
+          <!-- Device Settings -->
+          <div class="settings-column">
+            <!-- Camera Selector -->
+            <div class="input-group">
+              <label for="camera-select"><i data-lucide="camera"></i> Câmera (Rosto)</label>
+              <div class="select-wrapper">
+                <select id="camera-select">
+                  <option value="none">Carregando câmeras...</option>
+                </select>
+                <i data-lucide="chevron-down" class="select-arrow"></i>
+              </div>
+            </div>
+
+            <!-- Microphone Selector -->
+            <div class="input-group">
+              <label for="mic-select"><i data-lucide="mic"></i> Microfone (Áudio)</label>
+              <div class="select-wrapper">
+                <select id="mic-select">
+                  <option value="none">Carregando microfones...</option>
+                </select>
+                <i data-lucide="chevron-down" class="select-arrow"></i>
+              </div>
+            </div>
+
+            <!-- Screen Resolution / Quality (Mock option) -->
+            <div class="input-group">
+              <label for="quality-select"><i data-lucide="settings"></i> Qualidade do Vídeo</label>
+              <div class="select-wrapper">
+                <select id="quality-select">
+                  <option value="1080p">1080p (Alta Definição)</option>
+                  <option value="720p">720p (Padrão)</option>
+                </select>
+                <i data-lucide="chevron-down" class="select-arrow"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- Camera Preview Container -->
+          <div class="preview-column">
+            <div class="preview-box glass-panel-inner">
+              <video id="webcam-preview" autoplay muted playsinline></video>
+              <div class="preview-placeholder" id="preview-placeholder">
+                <i data-lucide="camera-off" class="placeholder-icon"></i>
+                <p>Selecione uma câmera para ver o preview</p>
+              </div>
+              <div class="preview-overlay">
+                <span class="preview-badge"><i data-lucide="eye"></i> Preview Ao Vivo</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Warning block for unsupported browsers -->
+        <div id="browser-warning" class="warning-box hidden">
+          <i data-lucide="alert-triangle"></i>
+          <div>
+            <strong>Aviso de Compatibilidade:</strong> Seu navegador atual não oferece suporte completo para a Document Picture-in-Picture API. A bolha de câmera flutuante fora do navegador pode não funcionar corretamente. Recomendamos usar o <strong>Google Chrome</strong> ou <strong>Microsoft Edge (v116+)</strong>.
+          </div>
+        </div>
+
+        <!-- Action Area -->
+        <div class="action-footer">
+          <button class="btn-primary btn-large ripple" id="start-btn">
+            <i data-lucide="play-circle" class="btn-icon"></i> Iniciar Gravação
+          </button>
+        </div>
+      </div>
+
+      <!-- Recording Active UI -->
+      <div class="recorder-card glass-panel recording-active hidden" id="recording-status-card">
+        <div class="recording-state-container">
+          <div class="pulse-container">
+            <div class="recording-pulse"></div>
+            <span class="recording-label">Gravando Tela + Câmera</span>
+          </div>
+          
+          <div class="timer-display" id="timer">00:00</div>
+          
+          <p class="recording-instructions">
+            <i data-lucide="info"></i> A bolha da sua câmera está aberta. Você pode arrastá-la e posicioná-la onde quiser no seu monitor, inclusive por cima do VS Code!
+          </p>
+
+          <div class="recording-controls-buttons">
+            <button class="btn-danger btn-large ripple" id="stop-btn">
+              <i data-lucide="stop-circle" class="btn-icon"></i> Parar Gravação
+            </button>
+            <button class="btn-secondary" id="cancel-btn">
+              <i data-lucide="trash-2"></i> Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Upload Modal -->
+    <div class="modal-overlay hidden" id="upload-modal">
+      <div class="modal-content glass-panel">
+        <div class="upload-animation">
+          <div class="spinner-container">
+            <div class="spinner"></div>
+            <i data-lucide="cloud-lightning" class="cloud-icon"></i>
+          </div>
+        </div>
+        <h3>Enviando para a Nuvem...</h3>
+        <p>Aguarde enquanto codificamos e fazemos o upload do seu vídeo.</p>
+        <div class="progress-bar-container">
+          <div class="progress-bar" id="upload-progress" style="width: 0%"></div>
+        </div>
+        <span class="progress-text" id="upload-progress-text">0% completo</span>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="main-footer">
+      <p>&copy; 2026 Loomify Inc. Todos os direitos reservados. Feito para criadores modernos.</p>
+    </footer>
+  </div>
+
+  <script src="./app.js" type="module"></script>
+  <script>
+    // Initialize Lucide icons on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+    });
+  </script>
+</body>
+</html>

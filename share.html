@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loomify - Compartilhamento de Vídeo</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Background Glows -->
+    <div class="glow glow-1"></div>
+    <div class="glow glow-2"></div>
+
+    <!-- Navigation Header -->
+    <header class="main-header">
+      <div class="logo">
+        <div class="logo-icon">
+          <i data-lucide="video" class="gradient-text-icon"></i>
+        </div>
+        <span class="logo-text" style="cursor: pointer;" onclick="window.location.href='index.html'">Loomify</span>
+        <span class="badge">Nuvem</span>
+      </div>
+      <div class="header-actions">
+        <button class="btn-primary" onclick="window.location.href='index.html'">
+          <i data-lucide="plus-circle"></i> Nova Gravação
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="dashboard-main">
+      <div class="player-layout">
+        
+        <!-- Left: Video Player & Metadata -->
+        <div class="player-main-col">
+          <!-- Video Box -->
+          <div class="player-box">
+            <video id="shared-video" controls autoplay playsinline></video>
+            <!-- Loading state inside player -->
+            <div id="video-loading" class="preview-placeholder">
+              <div class="spinner" style="position: relative; width: 40px; height: 40px; margin-bottom: 10px;"></div>
+              <p>Carregando vídeo gravado...</p>
+            </div>
+            <!-- Error state inside player -->
+            <div id="video-error" class="preview-placeholder hidden">
+              <i data-lucide="video-off" class="placeholder-icon" style="color: var(--color-danger)"></i>
+              <p>Vídeo não encontrado ou indisponível.</p>
+              <button class="btn-secondary" style="margin-top: 10px;" onclick="window.location.href='index.html'">Voltar ao Gravador</button>
+            </div>
+          </div>
+
+          <!-- Video Title and Action Info -->
+          <div class="video-info-card glass-panel">
+            <div class="video-title-container">
+              <div>
+                <h2 id="video-title" contenteditable="true" title="Clique para editar o título">Minha Gravação</h2>
+                <div class="video-meta">
+                  <span id="video-date"><i data-lucide="calendar"></i> --/--/----</span>
+                  <span id="video-size"><i data-lucide="hard-drive"></i> 0.0 MB</span>
+                  <span id="video-views"><i data-lucide="eye"></i> 1 visualização</span>
+                </div>
+              </div>
+              <div class="video-actions">
+                <button class="btn-secondary" id="copy-link-btn" title="Copiar link de compartilhamento">
+                  <i data-lucide="copy"></i> Copiar Link
+                </button>
+                <button class="btn-primary" id="download-btn" title="Baixar arquivo de vídeo">
+                  <i data-lucide="download"></i> Download
+                </button>
+              </div>
+            </div>
+
+            <!-- Custom Player Tweaks -->
+            <div class="video-player-controls">
+              <div class="controls-left">
+                <span class="video-meta" style="margin: 0;"><i data-lucide="play"></i> Velocidade de Reprodução:</span>
+              </div>
+              <div class="controls-right">
+                <span class="speed-badge active" data-speed="1">1.0x</span>
+                <span class="speed-badge" data-speed="1.25">1.25x</span>
+                <span class="speed-badge" data-speed="1.5">1.5x</span>
+                <span class="speed-badge" data-speed="2">2.0x</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Comments & List of other videos -->
+        <div class="player-side-col">
+          
+          <!-- Comments Panel -->
+          <div class="comments-panel glass-panel">
+            <h3><i data-lucide="message-square"></i> Comentários (<span id="comment-count">0</span>)</h3>
+            <div class="comments-list" id="comments-container">
+              <!-- Render comments here dynamically -->
+              <p class="no-videos-message" id="no-comments-msg">Nenhum comentário ainda. Seja o primeiro a comentar!</p>
+            </div>
+            
+            <div class="comment-input-area">
+              <textarea id="comment-input" placeholder="Adicione um comentário no vídeo..."></textarea>
+              <button class="btn-primary" id="send-comment-btn">Enviar</button>
+            </div>
+          </div>
+
+          <!-- Other Recordings Panel -->
+          <div class="videos-list-panel glass-panel">
+            <h3><i data-lucide="folder"></i> Minhas Gravações</h3>
+            <div class="video-thumb-list" id="my-videos-container">
+              <!-- Render list of records in IndexedDB here -->
+              <p class="no-videos-message">Nenhuma outra gravação encontrada.</p>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="main-footer">
+      <p>&copy; 2026 Loomify Inc. Todos os direitos reservados. Feito para criadores modernos.</p>
+    </footer>
+  </div>
+
+  <script src="./share.js" type="module"></script>
+  <script>
+    // Initialize Lucide icons on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+    });
+  </script>
+</body>
+</html>
