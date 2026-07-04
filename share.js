@@ -207,19 +207,68 @@ function copyShareLink() {
   });
 }
 
-// Download local video file
-function downloadVideo() {
+// Download local video file using native OS Save File Picker
+async function downloadVideo() {
   if (!currentVideoBlob) return;
   
   const title = videoTitle.textContent.trim().replace(/[^a-z0-9]/gi, '_').toLowerCase();
+  const filename = `${title || 'gravacao'}.webm`;
+
+  if ('showSaveFilePicker' in window) {
+    try {
+      const options = {
+        suggestedName: filename,
+        types: [{
+          description: 'Vídeos WebM',
+          accept: {
+            'video/webm': ['.webm']
+          }
+        }]
+      };
+
+      const fileHandle = await window.showSaveFilePicker(options);
+
+      // Show visual saving indicator
+      const originalText = downloadBtn.innerHTML;
+      downloadBtn.innerHTML = `<i data-lucide="loader-2" class="spinner" style="width: 16px; height: 16px;"></i> Salvando...`;
+      if (window.lucide) window.lucide.createIcons();
+
+      const writable = await fileHandle.createWritable();
+      await writable.write(currentVideoBlob);
+      await writable.close();
+
+      // Show visual success feedback
+      downloadBtn.innerHTML = `<i data-lucide="check"></i> Salvo!`;
+      downloadBtn.style.background = 'rgba(16, 185, 129, 0.15)';
+      downloadBtn.style.color = 'var(--color-success)';
+      if (window.lucide) window.lucide.createIcons();
+
+      setTimeout(() => {
+        downloadBtn.innerHTML = originalText;
+        downloadBtn.style.background = '';
+        downloadBtn.style.color = '';
+        if (window.lucide) window.lucide.createIcons();
+      }, 2000);
+
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error("Erro ao usar showSaveFilePicker:", err);
+        fallbackDownload(filename);
+      }
+    }
+  } else {
+    fallbackDownload(filename);
+  }
+}
+
+function fallbackDownload(filename) {
   const url = URL.createObjectURL(currentVideoBlob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${title || 'gravacao'}.webm`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   
-  // Clean up
   setTimeout(() => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
