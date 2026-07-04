@@ -358,14 +358,23 @@ async function startRecording(sourceId) {
     audioDestination = audioCtx.createMediaStreamDestination();
     let hasAudio     = false;
 
+    // Create a muted gain node connected to destination to force Chrome to process AudioContext nodes
+    const keepAliveGain = audioCtx.createGain();
+    keepAliveGain.gain.value = 0;
+    keepAliveGain.connect(audioCtx.destination);
+
     if (micStream?.getAudioTracks().length > 0) {
       const micAudioOnlyStream = new MediaStream(micStream.getAudioTracks());
-      audioCtx.createMediaStreamSource(micAudioOnlyStream).connect(audioDestination);
+      const micSource = audioCtx.createMediaStreamSource(micAudioOnlyStream);
+      micSource.connect(audioDestination);
+      micSource.connect(keepAliveGain);
       hasAudio = true;
     }
     if (screenStream?.getAudioTracks().length > 0) {
       const screenAudioOnlyStream = new MediaStream(screenStream.getAudioTracks());
-      audioCtx.createMediaStreamSource(screenAudioOnlyStream).connect(audioDestination);
+      const screenSource = audioCtx.createMediaStreamSource(screenAudioOnlyStream);
+      screenSource.connect(audioDestination);
+      screenSource.connect(keepAliveGain);
       hasAudio = true;
     }
 
@@ -380,6 +389,7 @@ async function startRecording(sourceId) {
 
     if (hasAudio) tracks.push(audioDestination.stream.getAudioTracks()[0]);
     combinedStream = new MediaStream(tracks);
+    console.log("Tracks gravadas:", combinedStream.getTracks().map(t => `${t.kind} - ${t.label} - enabled: ${t.enabled}`));
 
     // 5. Open camera bubble
     if (selectedCameraId !== 'none') {
