@@ -627,15 +627,7 @@ async function openWebCameraBubble() {
     `;
     container.appendChild(video);
 
-    // Flashing recording dot
-    const recDot = pipDocument.createElement('div');
-    recDot.id = 'pip-rec-dot';
-    recDot.style.cssText = `
-      position: absolute; top: 14px; right: 14px; width: 10px; height: 10px;
-      background: #ef4444; border-radius: 50%; border: 2px solid rgba(255,255,255,0.8);
-      animation: pipBlink 1.2s infinite; z-index: 10;
-    `;
-    container.appendChild(recDot);
+
 
     // Styling keyframes and classes
     const style = pipDocument.createElement('style');
@@ -719,15 +711,7 @@ function updatePipWindowPauseState(paused) {
   const recDot = pipDoc.getElementById('pip-rec-dot');
   const pauseBtn = pipDoc.getElementById('pip-pause-btn');
 
-  if (recDot) {
-    if (paused) {
-      recDot.style.background = '#f59e0b';
-      recDot.style.animation = 'none';
-    } else {
-      recDot.style.background = '#ef4444';
-      recDot.style.animation = 'pipBlink 1.2s infinite';
-    }
-  }
+
 
   if (pauseBtn) {
     const PAUSE_SVG = `<svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
