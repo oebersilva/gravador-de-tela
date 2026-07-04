@@ -198,6 +198,7 @@ async function startRecording() {
 
     // 3. Audio Mixing using Web Audio API
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    await audioCtx.resume(); // Garantir que o contexto está ativo
     audioDestination = audioCtx.createMediaStreamDestination();
     let hasAudioTrack = false;
 
