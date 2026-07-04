@@ -23,7 +23,7 @@ jobs:
           cache: 'npm'
 
       - name: Instalar dependências
-        run: npm ci
+        run: npm install
 
       - name: Construir instalador Windows (.exe)
         run: npm run build
