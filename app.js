@@ -21,6 +21,7 @@ const previewPlaceholder  = document.getElementById('preview-placeholder');
 const timerDisplay        = document.getElementById('timer');
 const systemStatus        = document.getElementById('system-status');
 const pipVideoElement     = document.getElementById('pip-video-element');
+const systemAudioSelect   = document.getElementById('system-audio-select');
 
 
 // ─── APPLICATION STATE ────────────────────────────────────────────────────────
@@ -49,7 +50,7 @@ async function init() {
     window.electronAPI.onDoPause(() => togglePauseResume());
     window.electronAPI.onDoStop(() => stopRecording());
   } else {
-    showWebWarning();
+    checkBrowserCompatibility();
   }
 
   await requestInitialPermissions();
@@ -70,17 +71,21 @@ async function init() {
   }
 }
 
-// ─── WEB APP WARNING ──────────────────────────────────────────────────────────
-function showWebWarning() {
+// ─── WEB APP WARNING / COMPATIBILITY CHECK ──────────────────────────────────
+function checkBrowserCompatibility() {
   if (browserWarning) {
-    browserWarning.classList.remove('hidden');
-    browserWarning.innerHTML = `
-      <i data-lucide="shield-alert" class="icon-violet"></i>
-      <div>
-        <strong>Aviso da Versão Web:</strong> O navegador restringe o compartilhamento de tela e exibe a URL no cabeçalho da câmera. Para uma <strong>bolha flutuante redonda, limpa e sem URLs</strong>, use a versão Desktop instalando o aplicativo no botão acima.
-      </div>
-    `;
-    if (window.lucide) window.lucide.createIcons();
+    if (!('documentPictureInPicture' in window)) {
+      browserWarning.classList.remove('hidden');
+      browserWarning.innerHTML = `
+        <i data-lucide="alert-triangle" class="icon-violet"></i>
+        <div>
+          <strong>Aviso de Compatibilidade:</strong> Seu navegador atual não oferece suporte completo para a Document Picture-in-Picture API. A bolha de câmera flutuante fora do navegador pode não funcionar corretamente. Recomendamos usar o <strong>Google Chrome</strong> ou <strong>Microsoft Edge (v116+)</strong>.
+        </div>
+      `;
+      if (window.lucide) window.lucide.createIcons();
+    } else {
+      browserWarning.classList.add('hidden');
+    }
   }
 }
 
@@ -305,10 +310,11 @@ async function startRecording(sourceId) {
       });
     } else {
       // Web fallback
+      const recordSystemAudio = systemAudioSelect ? systemAudioSelect.value === 'include' : true;
       screenStream = await navigator.mediaDevices.getDisplayMedia({
         video: { cursor: 'always', frameRate: { ideal: videoQuality === '1080p' ? 60 : 30 } },
-        audio: true,
-        systemAudio: 'include'
+        audio: recordSystemAudio,
+        systemAudio: recordSystemAudio ? 'include' : 'exclude'
       });
     }
 
