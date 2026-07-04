@@ -28,7 +28,7 @@
         <span class="badge">Nuvem</span>
       </div>
       <div class="header-actions">
-        <a href="#recorder-setup" class="btn-text">Como funciona</a>
+        <a href="#" id="how-it-works-btn" class="btn-text">Como funciona</a>
         <a href="share.html" class="btn-secondary">Meus Vídeos</a>
       </div>
     </header>
@@ -80,18 +80,6 @@
                 <select id="quality-select">
                   <option value="1080p">1080p (Alta Definição)</option>
                   <option value="720p">720p (Padrão)</option>
-                </select>
-                <i data-lucide="chevron-down" class="select-arrow"></i>
-              </div>
-            </div>
-
-            <!-- System Audio Toggle Option -->
-            <div class="input-group">
-              <label for="system-audio-select"><i data-lucide="volume-2"></i> Áudio do Computador</label>
-              <div class="select-wrapper">
-                <select id="system-audio-select">
-                  <option value="include">Gravar Áudio do Computador (YouTube, etc.)</option>
-                  <option value="exclude">Não Gravar Áudio do Computador</option>
                 </select>
                 <i data-lucide="chevron-down" class="select-arrow"></i>
               </div>
@@ -168,6 +156,50 @@
           <div class="progress-bar" id="upload-progress" style="width: 0%"></div>
         </div>
         <span class="progress-text" id="upload-progress-text">0% completo</span>
+      </div>
+    </div>
+
+    <!-- How It Works Modal -->
+    <div class="modal-overlay hidden" id="how-it-works-modal">
+      <div class="modal-content glass-panel" style="max-width: 480px; padding: 2.5rem; position: relative;">
+        <button id="close-how-btn" style="
+          position: absolute; top: 1.2rem; right: 1.2rem;
+          background: transparent; border: none; color: rgba(255,255,255,0.4);
+          font-size: 1.5rem; cursor: pointer; transition: color 0.15s;
+          outline: none; padding: 4px; display: flex; align-items: center; justify-content: center;
+        " onmouseenter="this.style.color='#ef4444'" onmouseleave="this.style.color='rgba(255,255,255,0.4)'">&times;</button>
+        
+        <h3 style="margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 1.5rem;">
+          <i data-lucide="help-circle" class="icon-violet"></i> Como Funciona?
+        </h3>
+        
+        <div class="steps-list" style="display: flex; flex-direction: column; gap: 1.5rem; margin-top: 1.5rem; text-align: left;">
+          <div style="display: flex; gap: 1rem; align-items: flex-start;">
+            <div style="background: var(--color-violet); color: white; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; font-size: 0.9rem;">1</div>
+            <div>
+              <h4 style="margin: 0 0 4px; color: #fff; font-size: 0.95rem; font-weight: 600;">Ajuste seus Dispositivos</h4>
+              <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">Escolha sua Câmera e Microfone nos seletores da página inicial.</p>
+            </div>
+          </div>
+          <div style="display: flex; gap: 1rem; align-items: flex-start;">
+            <div style="background: var(--color-violet); color: white; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; font-size: 0.9rem;">2</div>
+            <div>
+              <h4 style="margin: 0 0 4px; color: #fff; font-size: 0.95rem; font-weight: 600;">Inicie e Compartilhe Áudio</h4>
+              <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">Clique em <strong>Iniciar Gravação</strong>. No pop-up do Chrome, marque a opção <strong>\"Compartilhar também o áudio da guia\"</strong> para gravar o som do sistema/YouTube.</p>
+            </div>
+          </div>
+          <div style="display: flex; gap: 1rem; align-items: flex-start;">
+            <div style="background: var(--color-violet); color: white; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; font-size: 0.9rem;">3</div>
+            <div>
+              <h4 style="margin: 0 0 4px; color: #fff; font-size: 0.95rem; font-weight: 600;">Acesse e Gerencie Gravações</h4>
+              <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">Ao terminar, clique em <strong>Parar Gravação</strong>. O vídeo abrirá na tela de visualização e ficará salvo em <strong>Meus Vídeos</strong>, onde você pode assistir, baixar ou excluir permanentemente.</p>
+            </div>
+          </div>
+        </div>
+        
+        <div style="margin-top: 2rem; text-align: center;">
+          <button class="btn-primary" id="btn-entendido" style="padding: 0.6rem 2rem; border-radius: 10px;">Entendido!</button>
+        </div>
       </div>
     </div>
 

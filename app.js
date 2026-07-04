@@ -21,7 +21,10 @@ const previewPlaceholder  = document.getElementById('preview-placeholder');
 const timerDisplay        = document.getElementById('timer');
 const systemStatus        = document.getElementById('system-status');
 const pipVideoElement     = document.getElementById('pip-video-element');
-const systemAudioSelect   = document.getElementById('system-audio-select');
+const howItWorksBtn       = document.getElementById('how-it-works-btn');
+const howItWorksModal     = document.getElementById('how-it-works-modal');
+const closeHowBtn         = document.getElementById('close-how-btn');
+const btnEntendido        = document.getElementById('btn-entendido');
 
 
 // ─── APPLICATION STATE ────────────────────────────────────────────────────────
@@ -62,6 +65,29 @@ async function init() {
   startBtn.addEventListener('click', handleStartClick);
   stopBtn.addEventListener('click', stopRecording);
   cancelBtn.addEventListener('click', cancelRecording);
+
+  // How It Works Modal Listeners
+  if (howItWorksBtn && howItWorksModal) {
+    howItWorksBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      howItWorksModal.classList.remove('hidden');
+    });
+    
+    closeHowBtn?.addEventListener('click', () => {
+      howItWorksModal.classList.add('hidden');
+    });
+    
+    btnEntendido?.addEventListener('click', () => {
+      howItWorksModal.classList.add('hidden');
+    });
+
+    // Close when clicking outside of modal content
+    howItWorksModal.addEventListener('click', (e) => {
+      if (e.target === howItWorksModal) {
+        howItWorksModal.classList.add('hidden');
+      }
+    });
+  }
 
   // DB init (IndexedDB, used for share.html player)
   try {
@@ -310,11 +336,10 @@ async function startRecording(sourceId) {
       });
     } else {
       // Web fallback
-      const recordSystemAudio = systemAudioSelect ? systemAudioSelect.value === 'include' : true;
       screenStream = await navigator.mediaDevices.getDisplayMedia({
         video: { cursor: 'always', frameRate: { ideal: videoQuality === '1080p' ? 60 : 30 } },
-        audio: recordSystemAudio,
-        systemAudio: recordSystemAudio ? 'include' : 'exclude'
+        audio: true,
+        systemAudio: 'include'
       });
     }
 
