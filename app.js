@@ -605,21 +605,14 @@ async function openWebCameraBubble() {
     pipDocument.body.style.margin = '0';
     pipDocument.body.style.padding = '0';
     pipDocument.body.style.overflow = 'hidden';
-    pipDocument.body.style.background = '#0d0e12';
-    pipDocument.body.style.display = 'flex';
-    pipDocument.body.style.alignItems = 'center';
-    pipDocument.body.style.justifyContent = 'center';
-    pipDocument.body.style.height = '100vh';
-    pipDocument.body.style.width = '100vw';
+    pipDocument.body.style.background = 'transparent';
 
     // Container
     const container = pipDocument.createElement('div');
     container.id = 'pip-container';
     container.style.cssText = `
-      width: 200px; height: 200px; border-radius: 50%;
+      width: 100vw; height: 100vh;
       position: relative; overflow: hidden; background: #000;
-      border: 3px solid #8b5cf6;
-      box-shadow: 0 0 15px rgba(139, 92, 246, 0.5);
     `;
 
     // Video
@@ -629,7 +622,7 @@ async function openWebCameraBubble() {
     video.playsInline = true;
     video.srcObject = cameraStream;
     video.style.cssText = `
-      width: 100%; height: 100%; object-fit: cover;
+      width: 100vw; height: 100vh; object-fit: cover;
       transform: scaleX(-1); display: block;
     `;
     container.appendChild(video);
@@ -667,10 +660,10 @@ async function openWebCameraBubble() {
     const controls = pipDocument.createElement('div');
     controls.style.cssText = `
       position: absolute; bottom: 0; left: 0; right: 0;
-      height: 60px; border-radius: 0 0 100px 100px;
+      height: 64px; border-radius: 0;
       background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);
       display: flex; align-items: flex-end; justify-content: center;
-      gap: 10px; padding-bottom: 12px; opacity: 0; transition: opacity 0.2s ease;
+      gap: 12px; padding-bottom: 18px; opacity: 0; transition: opacity 0.2s ease;
       z-index: 20;
     `;
 
