@@ -17,6 +17,7 @@ const webcamPreview       = document.getElementById('webcam-preview');
 const previewPlaceholder  = document.getElementById('preview-placeholder');
 const timerDisplay        = document.getElementById('timer');
 const systemStatus        = document.getElementById('system-status');
+const pipVideoElement     = document.getElementById('pip-video-element');
 
 // ─── APPLICATION STATE ────────────────────────────────────────────────────────
 let cameraStream   = null;
@@ -148,6 +149,9 @@ async function handleCameraChange() {
       audio: false
     });
     webcamPreview.srcObject = cameraStream;
+    if (pipVideoElement) {
+      pipVideoElement.srcObject = cameraStream;
+    }
     webcamPreview?.classList.remove('hidden');
     previewPlaceholder?.classList.add('hidden');
   } catch (err) {
@@ -215,13 +219,13 @@ async function startRecording() {
     combinedStream = new MediaStream(tracks);
 
     // 5. Open webcam in standard Video PiP (Clean rectangular box, no URL bar!)
-    if (selectedCameraId !== 'none' && webcamPreview) {
+    if (selectedCameraId !== 'none' && pipVideoElement) {
       try {
-        // Request PiP on the video element showing the camera stream
-        await webcamPreview.requestPictureInPicture();
+        // Request PiP on the off-screen video element showing the camera stream
+        await pipVideoElement.requestPictureInPicture();
       } catch (pipErr) {
         console.warn('Could not launch Video PiP automatically:', pipErr);
-        alert('Por favor, ative o Picture-in-Picture clicando com o botão direito no preview da câmera se a bolha flutuante não abrir.');
+        alert('Por favor, ative o Picture-in-Picture se a câmera flutuante não abrir.');
       }
     }
 
