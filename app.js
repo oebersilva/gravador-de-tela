@@ -34,6 +34,7 @@ let timerInterval  = null;
 let secondsRecorded = 0;
 let isRecording    = false;
 let isPaused       = false;
+let pipWindow      = null;
 
 // Audio context
 let audioCtx          = null;
@@ -354,15 +355,8 @@ async function startRecording(sourceId) {
         // Desktop: open clean circular floating bubble window via main process (no URLs, stays on top of everything)
         await window.electronAPI.openBubble(selectedCameraId);
       } else {
-        // Web: use standard Video PiP (Clean rectangular box, no URL bar!)
-        if (pipVideoElement) {
-          try {
-            await pipVideoElement.requestPictureInPicture();
-          } catch (pipErr) {
-            console.warn('Could not launch Video PiP automatically:', pipErr);
-            alert('Por favor, ative o Picture-in-Picture se a câmera flutuante não abrir.');
-          }
-        }
+        // Web: use custom HTML Document PiP bubble with controls (captured in recording)
+        await openWebCameraBubble();
       }
     }
 
@@ -418,8 +412,9 @@ function stopRecording() {
   if (isElectron) {
     window.electronAPI.closeBubble().catch(() => {});
   } else {
-    if (document.pictureInPictureElement) {
-      document.exitPictureInPicture().catch(() => {});
+    if (pipWindow) {
+      pipWindow.close();
+      pipWindow = null;
     }
   }
 
@@ -443,8 +438,9 @@ function cancelRecording() {
   if (isElectron) {
     window.electronAPI.closeBubble().catch(() => {});
   } else {
-    if (document.pictureInPictureElement) {
-      document.exitPictureInPicture().catch(() => {});
+    if (pipWindow) {
+      pipWindow.close();
+      pipWindow = null;
     }
   }
 
@@ -550,17 +546,197 @@ function togglePauseResume() {
     stopTimer();
     timerDisplay?.classList.add('paused');
     if (isElectron) window.electronAPI.notifyPauseState(true);
+    updatePipWindowPauseState(true);
   } else {
     mediaRecorder.resume();
     isPaused = false;
     startTimer(true);
     timerDisplay?.classList.remove('paused');
     if (isElectron) window.electronAPI.notifyPauseState(false);
+    updatePipWindowPauseState(false);
   }
 }
 
 // Expose togglePauseResume globally
 window.togglePauseResume = togglePauseResume;
+
+// ─── DOCUMENT PICTURE IN PICTURE (WEB CAMERA BUBBLE) ─────────────────────────
+async function openWebCameraBubble() {
+  if (!('documentPictureInPicture' in window)) {
+    // Fallback to standard Video PiP if Document PiP is unsupported
+    if (pipVideoElement) {
+      try {
+        await pipVideoElement.requestPictureInPicture();
+      } catch (e) {
+        console.warn('Fallback Video PiP failed:', e);
+      }
+    }
+    return;
+  }
+
+  if (pipWindow) {
+    pipWindow.close();
+  }
+
+  try {
+    pipWindow = await window.documentPictureInPicture.requestWindow({
+      width: 220,
+      height: 220,
+    });
+
+    const pipDocument = pipWindow.document;
+
+    // Copy styles
+    [...document.styleSheets].forEach((sheet) => {
+      try {
+        const cssRules = [...sheet.cssRules].map((r) => r.cssText).join('');
+        const style = pipDocument.createElement('style');
+        style.textContent = cssRules;
+        pipDocument.head.appendChild(style);
+      } catch (e) {
+        const link = pipDocument.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = sheet.href;
+        pipDocument.head.appendChild(link);
+      }
+    });
+
+    // Body style
+    pipDocument.body.style.margin = '0';
+    pipDocument.body.style.padding = '0';
+    pipDocument.body.style.overflow = 'hidden';
+    pipDocument.body.style.background = 'transparent';
+
+    // Container
+    const container = pipDocument.createElement('div');
+    container.id = 'pip-container';
+    container.style.cssText = `
+      width: 220px; height: 220px; border-radius: 50%;
+      position: relative; overflow: hidden; background: #000;
+      box-shadow: 0 0 0 3px #8b5cf6, 0 0 20px rgba(139, 92, 246, 0.5);
+    `;
+
+    // Video
+    const video = pipDocument.createElement('video');
+    video.autoplay = true;
+    video.muted = true;
+    video.playsInline = true;
+    video.srcObject = cameraStream;
+    video.style.cssText = `
+      width: 100%; height: 100%; object-fit: cover;
+      transform: scaleX(-1); border-radius: 50%; display: block;
+    `;
+    container.appendChild(video);
+
+    // Flashing recording dot
+    const recDot = pipDocument.createElement('div');
+    recDot.id = 'pip-rec-dot';
+    recDot.style.cssText = `
+      position: absolute; top: 14px; right: 14px; width: 10px; height: 10px;
+      background: #ef4444; border-radius: 50%; border: 2px solid rgba(255,255,255,0.8);
+      animation: pipBlink 1.2s infinite; z-index: 10;
+    `;
+    container.appendChild(recDot);
+
+    // Styling keyframes and classes
+    const style = pipDocument.createElement('style');
+    style.textContent = `
+      @keyframes pipBlink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
+      }
+      .pip-ctrl-btn {
+        width: 32px; height: 32px; border-radius: 50%;
+        border: 1.5px solid rgba(255,255,255,0.5);
+        background: rgba(0, 0, 0, 0.55); color: white;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; transition: background 0.15s, border-color 0.15s, transform 0.1s;
+        padding: 0; outline: none;
+      }
+      .pip-ctrl-btn svg {
+        width: 14px; height: 14px; fill: currentColor;
+      }
+      .pip-ctrl-btn:hover {
+        background: #8b5cf6; border-color: #8b5cf6; transform: scale(1.1);
+      }
+      .pip-ctrl-btn.stop:hover {
+        background: #ef4444; border-color: #ef4444;
+      }
+    `;
+    pipDocument.head.appendChild(style);
+
+    // Controls container
+    const controls = pipDocument.createElement('div');
+    controls.style.cssText = `
+      position: absolute; bottom: 0; left: 0; right: 0;
+      height: 64px; border-radius: 0 0 50% 50% / 0 0 32px 32px;
+      background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%);
+      display: flex; align-items: flex-end; justify-content: center;
+      gap: 12px; padding-bottom: 18px; opacity: 0; transition: opacity 0.2s ease;
+      z-index: 20;
+    `;
+
+    // Hover
+    container.addEventListener('mouseenter', () => { controls.style.opacity = '1'; });
+    container.addEventListener('mouseleave', () => { controls.style.opacity = '0'; });
+
+    // Pause/Resume button
+    const pauseBtn = pipDocument.createElement('button');
+    pauseBtn.id = 'pip-pause-btn';
+    pauseBtn.className = 'pip-ctrl-btn';
+    pauseBtn.title = 'Pausar';
+    pauseBtn.innerHTML = `<svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
+    pauseBtn.addEventListener('click', () => {
+      togglePauseResume();
+    });
+
+    // Stop button
+    const stopBtn = pipDocument.createElement('button');
+    stopBtn.className = 'pip-ctrl-btn stop';
+    stopBtn.title = 'Parar e Salvar';
+    stopBtn.innerHTML = `<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>`;
+    stopBtn.addEventListener('click', () => {
+      stopRecording();
+    });
+
+    controls.appendChild(pauseBtn);
+    controls.appendChild(stopBtn);
+    container.appendChild(controls);
+    pipDocument.body.appendChild(container);
+
+    pipWindow.addEventListener('unload', () => {
+      pipWindow = null;
+    });
+
+  } catch (err) {
+    console.warn('Failed to open Document PiP:', err);
+  }
+}
+
+// Update PiP window UI dynamically based on pause/resume state
+function updatePipWindowPauseState(paused) {
+  if (!pipWindow) return;
+  const pipDoc = pipWindow.document;
+  const recDot = pipDoc.getElementById('pip-rec-dot');
+  const pauseBtn = pipDoc.getElementById('pip-pause-btn');
+
+  if (recDot) {
+    if (paused) {
+      recDot.style.background = '#f59e0b';
+      recDot.style.animation = 'none';
+    } else {
+      recDot.style.background = '#ef4444';
+      recDot.style.animation = 'pipBlink 1.2s infinite';
+    }
+  }
+
+  if (pauseBtn) {
+    const PAUSE_SVG = `<svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
+    const PLAY_SVG  = `<svg viewBox="0 0 24 24"><path d="M5 3l14 9-14 9V3z" fill="currentColor"/></svg>`;
+    pauseBtn.innerHTML = paused ? PLAY_SVG : PAUSE_SVG;
+    pauseBtn.title = paused ? 'Retomar' : 'Pausar';
+  }
+}
 
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', init);

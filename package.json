@@ -7,9 +7,8 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
-    "build": "electron-builder --win",
-    "web-dev": "vite --port 5173",
-    "web-build": "vite build"
+    "build": "vite build",
+    "desktop-build": "electron-builder --win"
   },
   "devDependencies": {
     "electron": "^31.0.0",
