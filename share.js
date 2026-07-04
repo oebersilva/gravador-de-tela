@@ -101,11 +101,6 @@ async function loadVideo(id) {
     // Render comments
     renderComments(updatedRecord.comments || []);
 
-    // Add some default system comments if new video with no comments
-    if (updatedRecord.comments.length === 0) {
-      await addInitialMockComments(id);
-    }
-
     // Refresh Lucide Icons
     if (window.lucide) window.lucide.createIcons();
 

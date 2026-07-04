@@ -29,6 +29,7 @@ let timerInterval = null;
 let secondsRecorded = 0;
 let pipWindow = null;
 let isRecording = false;
+let isPaused = false;
 
 // Audio Context for mixing
 let audioCtx = null;
@@ -175,14 +176,15 @@ async function startRecording() {
   const videoQuality = qualitySelect.value;
 
   try {
-    // 1. Request Screen Capture Stream (monitor/entire desktop)
+    // 1. Request Screen Capture Stream
     const displayOptions = {
       video: {
         cursor: "always",
-        displaySurface: "monitor", // Suggest entire monitor
+        displaySurface: "monitor",
         frameRate: { ideal: videoQuality === '1080p' ? 60 : 30 }
       },
-      audio: true // Captura som do sistema se selecionado pelo usuário
+      audio: true,
+      systemAudio: "include" // Sugerir áudio do sistema
     };
     
     screenStream = await navigator.mediaDevices.getDisplayMedia(displayOptions);
@@ -333,8 +335,34 @@ async function openCameraBubble(deviceId) {
       pipOverlay.appendChild(dot);
       pipOverlay.appendChild(txt);
 
+      // Create controls overlay inside PiP window (Pause, Stop)
+      const pipControls = pipWindow.document.createElement('div');
+      pipControls.className = 'pip-controls-overlay';
+
+      const pipPauseBtn = pipWindow.document.createElement('button');
+      pipPauseBtn.className = 'pip-control-btn btn-pause';
+      pipPauseBtn.title = 'Pausar Gravação';
+      pipPauseBtn.innerHTML = `<svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
+
+      const pipStopBtn = pipWindow.document.createElement('button');
+      pipStopBtn.className = 'pip-control-btn btn-stop';
+      pipStopBtn.title = 'Parar e Salvar';
+      pipStopBtn.innerHTML = `<svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>`;
+
+      pipPauseBtn.addEventListener('click', () => {
+        togglePauseResume(pipPauseBtn);
+      });
+
+      pipStopBtn.addEventListener('click', () => {
+        stopRecording();
+      });
+
+      pipControls.appendChild(pipPauseBtn);
+      pipControls.appendChild(pipStopBtn);
+
       pipContainer.appendChild(pipVideo);
       pipContainer.appendChild(pipOverlay);
+      pipContainer.appendChild(pipControls);
       pipWindow.document.body.appendChild(pipContainer);
 
       // Save a global reference
@@ -482,9 +510,12 @@ function cleanupStreams() {
 }
 
 // Timer management
-function startTimer() {
-  secondsRecorded = 0;
-  timerDisplay.textContent = '00:00';
+function startTimer(isResume = false) {
+  if (!isResume) {
+    secondsRecorded = 0;
+    timerDisplay.textContent = '00:00';
+  }
+  if (timerInterval) clearInterval(timerInterval);
   timerInterval = setInterval(updateTimer, 1000);
 }
 
@@ -500,6 +531,58 @@ function updateTimer() {
   const mins = Math.floor(secondsRecorded / 60).toString().padStart(2, '0');
   const secs = (secondsRecorded % 60).toString().padStart(2, '0');
   timerDisplay.textContent = `${mins}:${secs}`;
+}
+
+// Pause and Resume logic
+function togglePauseResume(pipPauseBtn) {
+  if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
+
+  if (!isPaused) {
+    // Pause recording
+    mediaRecorder.pause();
+    isPaused = true;
+    stopTimer();
+    
+    // Update PiP Button
+    if (pipPauseBtn) {
+      pipPauseBtn.innerHTML = `<svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="currentColor"><path d="M5 3l14 9-14 9V3z"/></svg>`;
+      pipPauseBtn.title = 'Retomar Gravação';
+    }
+    
+    // Blinking effect for paused timer
+    timerDisplay.classList.add('paused');
+    
+    // Update status badge in PiP
+    const pipOverlay = window.activePipWindow?.document.querySelector('.pip-overlay');
+    if (pipOverlay) {
+      pipOverlay.style.background = 'rgba(245, 158, 11, 0.85)'; // Orange/Yellow
+      const textNode = [...pipOverlay.childNodes].find(node => node.nodeType === Node.TEXT_NODE);
+      if (textNode) textNode.nodeValue = 'PAUSADO';
+    }
+    
+  } else {
+    // Resume recording
+    mediaRecorder.resume();
+    isPaused = false;
+    startTimer(true); // resume timer without resetting
+    
+    // Update PiP Button
+    if (pipPauseBtn) {
+      pipPauseBtn.innerHTML = `<svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
+      pipPauseBtn.title = 'Pausar Gravação';
+    }
+    
+    // Remove blinking
+    timerDisplay.classList.remove('paused');
+    
+    // Update status badge in PiP
+    const pipOverlay = window.activePipWindow?.document.querySelector('.pip-overlay');
+    if (pipOverlay) {
+      pipOverlay.style.background = 'rgba(239, 68, 68, 0.85)'; // Red
+      const textNode = [...pipOverlay.childNodes].find(node => node.nodeType === Node.TEXT_NODE);
+      if (textNode) textNode.nodeValue = 'GRAVANDO';
+    }
+  }
 }
 
 // Initialize Application on load
