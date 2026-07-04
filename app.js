@@ -21,7 +21,7 @@ const previewPlaceholder  = document.getElementById('preview-placeholder');
 const timerDisplay        = document.getElementById('timer');
 const systemStatus        = document.getElementById('system-status');
 const pipVideoElement     = document.getElementById('pip-video-element');
-const downloadSection     = document.getElementById('download-section');
+
 
 // ─── APPLICATION STATE ────────────────────────────────────────────────────────
 let cameraStream   = null;
@@ -43,15 +43,12 @@ let audioDestination  = null;
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 async function init() {
   if (isElectron) {
-    if (downloadSection) downloadSection.style.display = 'none';
     if (browserWarning)  browserWarning.style.display  = 'none';
     
     // Electron: bubble commands forwarded from main process
     window.electronAPI.onDoPause(() => togglePauseResume());
     window.electronAPI.onDoStop(() => stopRecording());
   } else {
-    // Web: show download button
-    if (downloadSection) downloadSection.style.display = 'block';
     showWebWarning();
   }
 
