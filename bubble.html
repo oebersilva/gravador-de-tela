@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loomify Bubble</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 220px;
+      height: 220px;
+      background: transparent !important;
+      overflow: hidden;
+    }
+
+    /* Outer circle: the draggable area */
+    .bubble-ring {
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      position: relative;
+      /* Purple glowing border */
+      box-shadow:
+        0 0 0 3px #8b5cf6,
+        0 0 20px rgba(139, 92, 246, 0.5),
+        0 8px 32px rgba(0, 0, 0, 0.6);
+      -webkit-app-region: drag;
+      cursor: grab;
+      overflow: hidden;
+    }
+
+    /* Camera video fills the circle */
+    #cam-video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+      border-radius: 50%;
+      display: block;
+      -webkit-app-region: no-drag;
+    }
+
+    /* Recording indicator dot - top-right corner */
+    .rec-dot {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 10px;
+      height: 10px;
+      background: #ef4444;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.8);
+      animation: blink 1.2s infinite;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    /* Controls hover overlay */
+    .controls {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 64px;
+      border-radius: 0 0 50% 50% / 0 0 32px 32px;
+      background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 10px;
+      padding-bottom: 18px;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      -webkit-app-region: no-drag;
+    }
+
+    .bubble-ring:hover .controls {
+      opacity: 1;
+    }
+
+    /* Control buttons */
+    .ctrl-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(255,255,255,0.5);
+      background: rgba(0, 0, 0, 0.55);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+      -webkit-app-region: no-drag;
+      padding: 0;
+    }
+
+    .ctrl-btn svg {
+      width: 14px;
+      height: 14px;
+      fill: currentColor;
+      flex-shrink: 0;
+    }
+
+    .ctrl-btn:hover {
+      background: #8b5cf6;
+      border-color: #8b5cf6;
+      transform: scale(1.12);
+    }
+
+    .ctrl-btn.stop:hover {
+      background: #ef4444;
+      border-color: #ef4444;
+    }
+
+    /* Status: paused */
+    .bubble-ring.paused .rec-dot {
+      background: #f59e0b;
+      animation: none;
+    }
+
+    .pause-overlay {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .bubble-ring.paused .pause-overlay {
+      display: flex;
+    }
+
+    .pause-overlay svg {
+      width: 40px;
+      height: 40px;
+      fill: rgba(255,255,255,0.85);
+    }
+
+    /* No-camera fallback */
+    .no-cam {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: #1a1730;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: rgba(255,255,255,0.4);
+      font-family: system-ui, sans-serif;
+      font-size: 12px;
+    }
+
+    .no-cam svg {
+      width: 36px;
+      height: 36px;
+      fill: rgba(255,255,255,0.25);
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bubble-ring" id="bubble">
+
+    <!-- Camera feed -->
+    <video id="cam-video" autoplay muted playsinline></video>
+
+    <!-- No-camera fallback -->
+    <div class="no-cam" id="no-cam" style="display:none">
+      <svg viewBox="0 0 24 24"><path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+      Sem câmera
+    </div>
+
+    <!-- Recording dot -->
+    <div class="rec-dot" id="rec-dot"></div>
+
+    <!-- Paused overlay -->
+    <div class="pause-overlay">
+      <svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+    </div>
+
+    <!-- Hover controls -->
+    <div class="controls">
+      <button class="ctrl-btn" id="pause-btn" title="Pausar / Retomar">
+        <!-- Pause icon default -->
+        <svg id="pause-icon" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+      </button>
+      <button class="ctrl-btn stop" id="stop-btn" title="Parar e Salvar">
+        <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+      </button>
+    </div>
+
+  </div>
+
+  <script src="bubble.js"></script>
+</body>
+</html>

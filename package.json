@@ -1,14 +1,41 @@
 {
-  "name": "loomify-screen-recorder",
-  "private": true,
+  "name": "loomify",
   "version": "1.0.0",
-  "type": "module",
+  "description": "Loomify - Gravador de Tela Premium",
+  "author": "Loomify",
+  "main": "main.js",
   "scripts": {
-    "dev": "vite --port 5173",
-    "build": "vite build",
-    "preview": "vite preview"
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder --win",
+    "web-dev": "vite --port 5173",
+    "web-build": "vite build"
   },
   "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3",
     "vite": "^5.2.0"
+  },
+  "build": {
+    "appId": "com.loomify.recorder",
+    "productName": "Loomify",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "win": {
+      "target": "nsis",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "files": [
+      "**/*",
+      "!node_modules/.cache",
+      "!dist-electron",
+      "!.git",
+      "!vite.config.js"
+    ]
   }
 }

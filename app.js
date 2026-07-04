@@ -1,6 +1,7 @@
 import { db } from './db.js';
 
-// app.js — Web Screen Recorder using standard Video Picture-in-Picture
+// ─── DETECT ELECTRON ─────────────────────────────────────────────────────────
+const isElectron = typeof window.electronAPI !== 'undefined';
 
 // ─── DOM ELEMENTS ─────────────────────────────────────────────────────────────
 const cameraSelect        = document.getElementById('camera-select');
@@ -20,6 +21,7 @@ const previewPlaceholder  = document.getElementById('preview-placeholder');
 const timerDisplay        = document.getElementById('timer');
 const systemStatus        = document.getElementById('system-status');
 const pipVideoElement     = document.getElementById('pip-video-element');
+const downloadSection     = document.getElementById('download-section');
 
 // ─── APPLICATION STATE ────────────────────────────────────────────────────────
 let cameraStream   = null;
@@ -33,24 +35,36 @@ let secondsRecorded = 0;
 let isRecording    = false;
 let isPaused       = false;
 
-// Audio context for mixing
+// Audio context
 let audioCtx          = null;
 let audioDestination  = null;
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 async function init() {
-  checkBrowserSupport();
+  if (isElectron) {
+    if (downloadSection) downloadSection.style.display = 'none';
+    if (browserWarning)  browserWarning.style.display  = 'none';
+    
+    // Electron: bubble commands forwarded from main process
+    window.electronAPI.onDoPause(() => togglePauseResume());
+    window.electronAPI.onDoStop(() => stopRecording());
+  } else {
+    // Web: show download button
+    if (downloadSection) downloadSection.style.display = 'block';
+    showWebWarning();
+  }
+
   await requestInitialPermissions();
   await loadDevices();
 
   // Event listeners
   cameraSelect.addEventListener('change', handleCameraChange);
   micSelect.addEventListener('change', handleMicChange);
-  startBtn.addEventListener('click', startRecording);
+  startBtn.addEventListener('click', handleStartClick);
   stopBtn.addEventListener('click', stopRecording);
   cancelBtn.addEventListener('click', cancelRecording);
 
-  // Initialize DB (IndexedDB)
+  // DB init (IndexedDB, used for share.html player)
   try {
     await db.init();
   } catch (err) {
@@ -58,16 +72,14 @@ async function init() {
   }
 }
 
-// ─── BROWSER SUPPORT CHECK ────────────────────────────────────────────────────
-function checkBrowserSupport() {
-  // Check if standard Picture-in-Picture is supported
-  const isPipSupported = 'pictureInPictureEnabled' in document;
-  if (!isPipSupported) {
-    browserWarning?.classList.remove('hidden');
+// ─── WEB APP WARNING ──────────────────────────────────────────────────────────
+function showWebWarning() {
+  if (browserWarning) {
+    browserWarning.classList.remove('hidden');
     browserWarning.innerHTML = `
-      <i data-lucide="alert-triangle"></i>
+      <i data-lucide="shield-alert" class="icon-violet"></i>
       <div>
-        <strong>Aviso de Compatibilidade:</strong> Seu navegador não suporta Picture-in-Picture. A câmera flutuante retangular não poderá se sobrepor a outros programas.
+        <strong>Aviso da Versão Web:</strong> O navegador restringe o compartilhamento de tela e exibe a URL no cabeçalho da câmera. Para uma <strong>bolha flutuante redonda, limpa e sem URLs</strong>, use a versão Desktop instalando o aplicativo no botão acima.
       </div>
     `;
     if (window.lucide) window.lucide.createIcons();
@@ -166,31 +178,150 @@ async function handleCameraChange() {
 function handleMicChange() { /* no-op */ }
 
 // ─── START RECORDING FLOW ─────────────────────────────────────────────────────
-async function startRecording() {
+async function handleStartClick() {
+  if (isElectron) {
+    // Show screen source picker then record
+    await showElectronSourcePicker();
+  } else {
+    // Web fallback: use getDisplayMedia directly
+    await startRecording(null);
+  }
+}
+
+// ─── ELECTRON: SCREEN SOURCE PICKER ──────────────────────────────────────────
+async function showElectronSourcePicker() {
+  let sources;
+  try {
+    sources = await window.electronAPI.getScreenSources();
+  } catch (err) {
+    console.error('Source fetch error:', err);
+    alert('Não foi possível listar as telas disponíveis.');
+    return;
+  }
+
+  // Build modal
+  const overlay = document.createElement('div');
+  overlay.id = 'source-picker-overlay';
+  overlay.style.cssText = `
+    position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999; backdrop-filter: blur(6px);
+  `;
+
+  const box = document.createElement('div');
+  box.style.cssText = `
+    background: #1a1730; border-radius: 20px; padding: 28px;
+    max-width: 680px; width: 90%; border: 1px solid rgba(139,92,246,0.3);
+    box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+  `;
+
+  box.innerHTML = `
+    <h2 style="color:#f3f4f6;font-family:'Outfit',system-ui,sans-serif;
+                margin:0 0 6px;font-size:20px;font-weight:700">
+      Escolha o que gravar
+    </h2>
+    <p style="color:rgba(255,255,255,.45);font-family:'Outfit',system-ui,sans-serif;
+              margin:0 0 20px;font-size:13px">
+      Selecione um monitor ou janela específica
+    </p>
+    <div id="source-grid" style="
+      display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+      gap:12px;max-height:360px;overflow-y:auto;padding-right:4px
+    "></div>
+    <div style="margin-top:20px;text-align:right">
+      <button id="src-cancel-btn" style="
+        background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.6);
+        border:1px solid rgba(255,255,255,0.12);border-radius:10px;
+        padding:8px 20px;cursor:pointer;font-family:'Outfit',system-ui;font-size:14px
+      ">Cancelar</button>
+    </div>
+  `;
+
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  const grid = box.querySelector('#source-grid');
+
+  sources.forEach(source => {
+    const card = document.createElement('button');
+    card.style.cssText = `
+      background: rgba(255,255,255,0.04); border: 1.5px solid rgba(255,255,255,0.1);
+      border-radius: 12px; padding: 8px; cursor: pointer; text-align: center;
+      transition: border-color 0.15s, background 0.15s; display: flex;
+      flex-direction: column; align-items: center; gap: 8px; width: 100%;
+    `;
+    card.innerHTML = `
+      <img src="${source.thumbnail}" style="
+        width:100%;border-radius:6px;aspect-ratio:16/9;object-fit:cover;
+        border:1px solid rgba(255,255,255,0.1)
+      "/>
+      <span style="
+        color:#d1d5db;font-family:'Outfit',system-ui;font-size:12px;
+        font-weight:500;white-space:nowrap;overflow:hidden;
+        text-overflow:ellipsis;width:100%;padding:0 4px
+      ">${source.name}</span>
+    `;
+
+    card.addEventListener('mouseenter', () => {
+      card.style.borderColor = '#8b5cf6';
+      card.style.background  = 'rgba(139,92,246,0.12)';
+    });
+    card.addEventListener('mouseleave', () => {
+      card.style.borderColor = 'rgba(255,255,255,0.1)';
+      card.style.background  = 'rgba(255,255,255,0.04)';
+    });
+    card.addEventListener('click', () => {
+      overlay.remove();
+      startRecording(source.id);
+    });
+
+    grid.appendChild(card);
+  });
+
+  box.querySelector('#src-cancel-btn').addEventListener('click', () => overlay.remove());
+}
+
+// ─── MAIN RECORDING FUNCTION ─────────────────────────────────────────────────
+async function startRecording(sourceId) {
   recordedChunks = [];
   const selectedCameraId = cameraSelect.value;
   const selectedMicId    = micSelect.value;
   const videoQuality     = qualitySelect.value;
 
   try {
-    // 1. Capture screen with user prompt (includes tab / screen / window choice + system audio request)
-    screenStream = await navigator.mediaDevices.getDisplayMedia({
-      video: {
-        cursor: 'always',
-        frameRate: { ideal: videoQuality === '1080p' ? 60 : 30 }
-      },
-      audio: true,
-      systemAudio: 'include'
-    });
+    // 1. Capture screen
+    if (isElectron && sourceId) {
+      screenStream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          mandatory: {
+            chromeMediaSource: 'desktop',
+            chromeMediaSourceId: sourceId,
+            minWidth: 1280,
+            maxWidth: 3840,
+            minHeight: 720,
+            maxHeight: 2160,
+            maxFrameRate: videoQuality === '1080p' ? 60 : 30
+          }
+        }
+      });
+    } else {
+      // Web fallback
+      screenStream = await navigator.mediaDevices.getDisplayMedia({
+        video: { cursor: 'always', frameRate: { ideal: videoQuality === '1080p' ? 60 : 30 } },
+        audio: true,
+        systemAudio: 'include'
+      });
+    }
 
-    // 2. Capture mic stream if selected
+    // 2. Capture mic
     if (selectedMicId !== 'none') {
       micStream = await navigator.mediaDevices.getUserMedia({
         audio: { deviceId: selectedMicId, echoCancellation: true, noiseSuppression: true }
       });
     }
 
-    // 3. Audio mixing using Web Audio API
+    // 3. Mix audio
     audioCtx         = new (window.AudioContext || window.webkitAudioContext)();
     await audioCtx.resume();
     audioDestination = audioCtx.createMediaStreamDestination();
@@ -205,29 +336,33 @@ async function startRecording() {
       hasAudio = true;
     }
 
-    // 4. Assemble combined stream
+    // 4. Build combined stream (screen video + mixed audio)
     const tracks = [];
     const videoTrack = screenStream.getVideoTracks()[0];
     tracks.push(videoTrack);
 
-    // If user stops sharing screen using Chrome's native stop bar, handle it gracefully
     videoTrack.addEventListener('ended', () => {
       if (isRecording) stopRecording();
     });
 
-    if (hasAudio) {
-      tracks.push(audioDestination.stream.getAudioTracks()[0]);
-    }
+    if (hasAudio) tracks.push(audioDestination.stream.getAudioTracks()[0]);
     combinedStream = new MediaStream(tracks);
 
-    // 5. Open webcam in standard Video PiP (Clean rectangular box, no URL bar!)
-    if (selectedCameraId !== 'none' && pipVideoElement) {
-      try {
-        // Request PiP on the off-screen video element showing the camera stream
-        await pipVideoElement.requestPictureInPicture();
-      } catch (pipErr) {
-        console.warn('Could not launch Video PiP automatically:', pipErr);
-        alert('Por favor, ative o Picture-in-Picture se a câmera flutuante não abrir.');
+    // 5. Open camera bubble
+    if (selectedCameraId !== 'none') {
+      if (isElectron) {
+        // Desktop: open clean circular floating bubble window via main process (no URLs, stays on top of everything)
+        await window.electronAPI.openBubble(selectedCameraId);
+      } else {
+        // Web: use standard Video PiP (Clean rectangular box, no URL bar!)
+        if (pipVideoElement) {
+          try {
+            await pipVideoElement.requestPictureInPicture();
+          } catch (pipErr) {
+            console.warn('Could not launch Video PiP automatically:', pipErr);
+            alert('Por favor, ative o Picture-in-Picture se a câmera flutuante não abrir.');
+          }
+        }
       }
     }
 
@@ -242,33 +377,30 @@ async function startRecording() {
     mediaRecorder = new MediaRecorder(combinedStream, mimeType ? { mimeType } : {});
     mediaRecorder.ondataavailable = handleDataAvailable;
     mediaRecorder.onstop          = handleRecordingStop;
-    
-    // Start recording chunks
     mediaRecorder.start(1000);
     isRecording = true;
 
-    // 7. Update UI to recording mode
+    // 7. Update UI
     recorderSetup?.classList.add('hidden');
     recordingStatusCard?.classList.remove('hidden');
     startTimer();
 
   } catch (err) {
-    console.error('Recording start error:', err);
+    console.error('Recording error:', err);
     cleanupStreams();
+    if (isElectron) window.electronAPI.closeBubble().catch(() => {});
     if (document.pictureInPictureElement) {
       document.exitPictureInPicture().catch(() => {});
     }
     if (err.name !== 'NotAllowedError') {
-      alert('Falha ao iniciar gravação. Certifique-se de conceder permissões de tela e áudio.');
+      alert('Falha ao iniciar gravação. Verifique as permissões e tente novamente.');
     }
   }
 }
 
 // ─── DATA COLLECTION ─────────────────────────────────────────────────────────
 function handleDataAvailable(event) {
-  if (event.data?.size > 0) {
-    recordedChunks.push(event.data);
-  }
+  if (event.data?.size > 0) recordedChunks.push(event.data);
 }
 
 // ─── STOP RECORDING ──────────────────────────────────────────────────────────
@@ -280,13 +412,15 @@ function stopRecording() {
   stopTimer();
   timerDisplay?.classList.remove('paused');
 
-  if (mediaRecorder?.state !== 'inactive') {
-    mediaRecorder.stop();
-  }
+  if (mediaRecorder?.state !== 'inactive') mediaRecorder.stop();
 
-  // Exit Video PiP
-  if (document.pictureInPictureElement) {
-    document.exitPictureInPicture().catch(err => console.warn('Error exiting PiP:', err));
+  // Close bubble
+  if (isElectron) {
+    window.electronAPI.closeBubble().catch(() => {});
+  } else {
+    if (document.pictureInPictureElement) {
+      document.exitPictureInPicture().catch(() => {});
+    }
   }
 
   recordingStatusCard?.classList.add('hidden');
@@ -306,9 +440,12 @@ function cancelRecording() {
     mediaRecorder.stop();
   }
 
-  // Exit Video PiP
-  if (document.pictureInPictureElement) {
-    document.exitPictureInPicture().catch(() => {});
+  if (isElectron) {
+    window.electronAPI.closeBubble().catch(() => {});
+  } else {
+    if (document.pictureInPictureElement) {
+      document.exitPictureInPicture().catch(() => {});
+    }
   }
 
   cleanupStreams();
@@ -317,24 +454,33 @@ function cancelRecording() {
   handleCameraChange();
 }
 
-// ─── PROCESS AND SAVE VIDEO ──────────────────────────────────────────────────
+// ─── HANDLE RECORDING STOP (save/share) ──────────────────────────────────────
 async function handleRecordingStop() {
   cleanupStreams();
 
-  const blob      = new Blob(recordedChunks, { type: 'video/webm' });
-  const videoId   = crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
+  const blob    = new Blob(recordedChunks, { type: 'video/webm' });
+  const videoId = crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
   const videoDate = new Date().toISOString();
 
-  // Progress animation
+  // Progress bar
   let progress = 0;
   uploadProgress.style.width = '0%';
-  uploadProgressText.textContent = 'Processando vídeo…';
+  uploadProgressText.textContent = 'Processando…';
 
   const tick = setInterval(async () => {
     progress += Math.floor(Math.random() * 15) + 5;
     if (progress >= 100) {
       progress = 100;
       clearInterval(tick);
+
+      // Electron: also offer native save dialog alongside share page
+      if (isElectron) {
+        const buf = await blob.arrayBuffer();
+        const result = await window.electronAPI.saveVideo(buf);
+        if (result.success) {
+          uploadProgressText.textContent = '✅ Salvo em: ' + result.filePath;
+        }
+      }
 
       // Save to IndexedDB
       try {
@@ -350,8 +496,10 @@ async function handleRecordingStop() {
           window.location.href = `share.html?id=${videoId}`;
         }
       } catch (err) {
-        console.error('Save to IndexedDB error:', err);
-        alert('Erro ao salvar o vídeo localmente.');
+        console.error('Save error:', err);
+        if (!isElectron) {
+          alert('Erro ao salvar vídeo.');
+        }
         uploadModal?.classList.add('hidden');
         recorderSetup?.classList.remove('hidden');
         handleCameraChange();
@@ -387,6 +535,11 @@ function startTimer(isResume = false) {
   }, 1000);
 }
 
+function stopTimer() {
+  clearInterval(timerInterval);
+  timerInterval = null;
+}
+
 // ─── PAUSE / RESUME ───────────────────────────────────────────────────────────
 function togglePauseResume() {
   if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
@@ -394,23 +547,19 @@ function togglePauseResume() {
   if (!isPaused) {
     mediaRecorder.pause();
     isPaused = true;
-    clearInterval(timerInterval);
-    timerInterval = null;
+    stopTimer();
     timerDisplay?.classList.add('paused');
+    if (isElectron) window.electronAPI.notifyPauseState(true);
   } else {
     mediaRecorder.resume();
     isPaused = false;
     startTimer(true);
     timerDisplay?.classList.remove('paused');
+    if (isElectron) window.electronAPI.notifyPauseState(false);
   }
 }
 
-function stopTimer() {
-  clearInterval(timerInterval);
-  timerInterval = null;
-}
-
-// Expose controls to window
+// Expose togglePauseResume globally
 window.togglePauseResume = togglePauseResume;
 
 // ─── BOOT ─────────────────────────────────────────────────────────────────────

@@ -1,0 +1,68 @@
+name: Build e Publicar Loomify para Windows
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:   # permite rodar manualmente pelo GitHub
+
+permissions:
+  contents: write      # necessário para criar Releases
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Baixar código do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Construir instalador Windows (.exe)
+        run: npm run build
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false   # sem assinatura de código
+
+      - name: Encontrar o arquivo .exe gerado
+        id: find_exe
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Path "dist-electron" -Filter "*.exe" -Recurse | Select-Object -First 1
+          echo "EXE_PATH=$($exe.FullName)" >> $env:GITHUB_OUTPUT
+          echo "EXE_NAME=$($exe.Name)" >> $env:GITHUB_OUTPUT
+          echo "Arquivo encontrado: $($exe.FullName)"
+
+      - name: Criar tag automática com versão + data
+        id: tag
+        shell: pwsh
+        run: |
+          $version = node -e "console.log(require('./package.json').version)"
+          $date = Get-Date -Format "yyyyMMdd-HHmm"
+          $tag = "v$version-build-$date"
+          echo "TAG=$tag" >> $env:GITHUB_OUTPUT
+          echo "Tag gerada: $tag"
+
+      - name: Publicar Release com o instalador
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.TAG }}
+          name: "Loomify ${{ steps.tag.outputs.TAG }}"
+          body: |
+            ## 📥 Download do Loomify para Windows
+
+            Clique no arquivo `.exe` abaixo para baixar e instalar.
+
+            **Como instalar:**
+            1. Baixe o arquivo `Loomify Setup*.exe`
+            2. Clique duas vezes para instalar
+            3. Pronto — Loomify abre como qualquer programa!
+          files: ${{ steps.find_exe.outputs.EXE_PATH }}
+          draft: false
+          prerelease: false
