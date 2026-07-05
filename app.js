@@ -352,30 +352,36 @@ async function startRecording(sourceId) {
       });
     }
 
-    // 3. Mix audio
-    audioCtx         = new (window.AudioContext || window.webkitAudioContext)();
-    await audioCtx.resume();
-    audioDestination = audioCtx.createMediaStreamDestination();
-    let hasAudio     = false;
+    // 3. Process and Mix audio
+    let audioTrack = null;
+    const micTracks = micStream?.getAudioTracks() || [];
+    const screenTracks = screenStream?.getAudioTracks() || [];
 
-    // Create a muted gain node connected to destination to force Chrome to process AudioContext nodes
-    const keepAliveGain = audioCtx.createGain();
-    keepAliveGain.gain.value = 0;
-    keepAliveGain.connect(audioCtx.destination);
-
-    if (micStream?.getAudioTracks().length > 0) {
-      const micAudioOnlyStream = new MediaStream(micStream.getAudioTracks());
-      const micSource = audioCtx.createMediaStreamSource(micAudioOnlyStream);
+    if (micTracks.length > 0 && screenTracks.length > 0) {
+      // Both are active: we mix them using AudioContext
+      audioCtx         = new (window.AudioContext || window.webkitAudioContext)();
+      await audioCtx.resume();
+      audioDestination = audioCtx.createMediaStreamDestination();
+      
+      const keepAliveGain = audioCtx.createGain();
+      keepAliveGain.gain.value = 0;
+      keepAliveGain.connect(audioCtx.destination);
+      
+      const micSource = audioCtx.createMediaStreamSource(new MediaStream([micTracks[0]]));
       micSource.connect(audioDestination);
       micSource.connect(keepAliveGain);
-      hasAudio = true;
-    }
-    if (screenStream?.getAudioTracks().length > 0) {
-      const screenAudioOnlyStream = new MediaStream(screenStream.getAudioTracks());
-      const screenSource = audioCtx.createMediaStreamSource(screenAudioOnlyStream);
+      
+      const screenSource = audioCtx.createMediaStreamSource(new MediaStream([screenTracks[0]]));
       screenSource.connect(audioDestination);
       screenSource.connect(keepAliveGain);
-      hasAudio = true;
+      
+      audioTrack = audioDestination.stream.getAudioTracks()[0];
+    } else if (micTracks.length > 0) {
+      // Only mic is active: use the raw track directly to avoid AudioContext restrictions!
+      audioTrack = micTracks[0];
+    } else if (screenTracks.length > 0) {
+      // Only screen/system audio is active: use the raw track directly to avoid AudioContext restrictions!
+      audioTrack = screenTracks[0];
     }
 
     // 4. Build combined stream (screen video + mixed audio)
@@ -387,7 +393,9 @@ async function startRecording(sourceId) {
       if (isRecording) stopRecording();
     });
 
-    if (hasAudio) tracks.push(audioDestination.stream.getAudioTracks()[0]);
+    if (audioTrack) {
+      tracks.push(audioTrack);
+    }
     combinedStream = new MediaStream(tracks);
     console.log("Tracks gravadas:", combinedStream.getTracks().map(t => `${t.kind} - ${t.label} - enabled: ${t.enabled}`));
 
